@@ -1,0 +1,86 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Tag, Release, & Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preview
+        run: echo "Uncomment workflow options to unleash some automation awesomeness."
+      
+      #   # Checkout the updated source code
+      # - uses: actions/checkout@v2
+      
+      #   # If the version has changed, create a new git tag for it.
+      # - name: Tag
+      #   id: autotagger
+      #   uses: butlerlogic/action-autotag@stable
+      #   with:
+      #     GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      
+      #   # The remaining steps all depend on whether or  not
+      #   # a new tag was created. There is no need to release/publish 
+      #   # updates until the code base is in a releaseable state.
+
+      #   # Create a github release
+      #   # This will create a snapshot of the module,
+      #   # available in the "Releases" section on Github.
+      # - name: Create Release
+      #   id: release
+      #   if: steps.autotagger.outputs.tagcreated == 'yes'
+      #   uses: actions/create-release@v1.0.0
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     tag_name: ${{ steps.autotagger.outputs.tagname }}
+      #     release_name: ${{ steps.autotagger.outputs.tagname }}
+      #     body: ${{ steps.autotagger.outputs.tagmessage }}
+      #     draft: false
+      #     prerelease: ${{ steps.autotagger.outputs.prerelease == 'yes' }}
+
+      # - uses: actions/setup-node@v1
+      #   if: steps.release.outputs.id != ''
+      #   with:
+      #     node-version: '13'
+
+      # - name: Build Release Artifacts
+      #   if: success() && steps.release.outputs.id != ''
+      #   id: build
+      #   run: |
+      #     cd ./build && npm install && cd ../
+      #     npm run build --if-present
+      #     for d in .dist/*/*/ ; do tar -cvzf ${d%%/}-${{ steps.autotagger.outputs.tagname }}.tar.gz ${d%%}*; done;
+      #     ls -l ./.dist/node
+      #     ls -l ./.dist/browser
+    
+      # - name: Upload Release Artifacts
+      #   if: success() && steps.release.outputs.id != ''
+      #   uses: AButler/upload-release-assets@v2.0
+      #   with:
+      #     files: './.dist/**/*.tar.gz'
+      #     repo-token: ${{ secrets.GITHUB_TOKEN }}
+      #     release-tag: ${{ steps.autotagger.outputs.tagname }}
+
+      #   # Use this action to publish a single module to npm.
+      # - name: Publish
+      #   id: publish
+      #   if: success() && steps.autotagger.outputs.tagcreated == 'yes' && steps.release.outputs.id != ''
+      #   uses: author/action-publish@stable
+      #   with:
+      #     scan: .dist
+      #   env:
+      #     REGISTRY_TOKEN: "${{ secrets.NPM_TOKEN }}"
+
+      #   # If the publish fails, rollback the release
+      # - name: Rollback
+      #   if: failure() && steps.autotagger.outputs.tagcreated == 'yes'
+      #   uses: author/action-rollback@stable
+      #   with:
+      #     release_id: ${{ steps.release.outputs.id }}
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
