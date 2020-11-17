@@ -1,6 +1,6 @@
-# CloudFlare Worker Emulator
+# Cloudflare Worker Emulator
 
-This emulator runs most CloudFlare workers locally, in an isolated environment. When work is complete, it can be published to CloudFlare using the publish subcommand. The tool extends the Wrangler tool provided by CloudFlare and was re-engineered from the original work created by Dollar Shave Club.
+This emulator runs most Cloudflare workers locally, in an isolated environment. When work is complete, it can be published to Cloudflare using the publish subcommand. The tool extends the Wrangler tool provided by Cloudflare and was re-engineered from the original work created by Dollar Shave Club.
 
 ## Installation
 
@@ -11,11 +11,11 @@ This emulator runs most CloudFlare workers locally, in an isolated environment. 
 ```bash
 cfw [COMMAND]
 
-  Emulates the CloudFlare worker environment.
+  Emulates the Cloudflare worker environment.
 
 Commands:
 
-  run                 Run a CloudFlare worker.
+  run                 Run a Cloudflare worker.
   secret              View and manage secrets. This wraps the "wrangler secret"
                       command to make secrets available in the local runtime.
   publish|pub         Publish your worker.
@@ -26,7 +26,7 @@ Commands:
 ```bash
 cfw run [FLAGS] <worker.js>
 
-  Run a CloudFlare worker.
+  Run a Cloudflare worker.
 
 Flags:
 
@@ -88,7 +88,7 @@ Flags:
   --file          [-f]        The file where the secrets are stored locally.
                               Stored in plain text. (Default: .cloudflare_secrets)
   --environment   [-e]        Environment to use
-  --secrets       [-s]        Auto-update secrets on CloudFlare. (Default: true)
+  --secrets       [-s]        Auto-update secrets on Cloudflare. (Default: true)
   --encrypt       [-key]      A custom encryption key for decrypting secrets.
 ```
 
