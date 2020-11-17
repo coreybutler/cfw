@@ -129,4 +129,4 @@ async function handleRequest (request) {
 }
 ```
 
-![Screenshot](screenshot.jpg)
+![Screenshot](https://github.com/author/cfw/raw/master/screenshot.png)

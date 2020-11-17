@@ -2,4 +2,4 @@ build
 test
 examples
 .*
-*.log
+*.png
