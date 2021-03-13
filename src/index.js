@@ -1,4 +1,5 @@
-#!/usr/bin/env NODE_OPTIONS='--require=./suppress.cjs' node --experimental-modules -r source-map-support/register
+#!/usr/bin/env NODE_OPTIONS='--require=./suppress.cjs' node
+// #!/usr/bin/env NODE_OPTIONS='--require=./suppress.cjs' node --experimental-modules -r source-map-support/register
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'

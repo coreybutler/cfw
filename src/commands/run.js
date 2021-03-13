@@ -9,6 +9,7 @@ import CFWorker from '../lib/worker.js'
 import WASM from '../lib/wasm.js'
 import { Command, Table } from '@author.io/node-shell'
 import chokidar from 'chokidar'
+import zlib from 'zlib'
 
 const cmd = new Command({
   name: 'run',
@@ -75,6 +76,15 @@ const cmd = new Command({
       alias: 'enc',
       description: 'A custom encryption key for accessing secrets.',
       type: 'string'
+    },
+    source: {
+      alias: 'src',
+      description: 'An alternative source directory to monitor for changes. Useful when the worker uses a build process with a different output directory.'
+    },
+    build: {
+      alias: 'b',
+      description: 'npm build command to run whenever a reload neds to occur. ex: --build build',
+      type: 'string'
     }
   },
   async handler (meta) {
@@ -103,13 +113,15 @@ const cmd = new Command({
 
     // Load WASM files
     const bindings = {}
-    for (let arg in meta.flag('wasm')) {
+    for (let arg of meta.flag('wasm')) {
       arg = WASM.parse(arg)
-      bindings[wasm[0]] = wasm[1]
+      bindings[arg[0]] = arg[1]
     }
 
     const wasm = await WASM.create(bindings).catch(e => console.log(e) && process.exit(1))
+
     const source = meta.flag(0)
+
     const worker = new CFWorker(source, wasm)
 
     worker.cache = meta.flag('cache')
@@ -123,7 +135,7 @@ const cmd = new Command({
 
     // Support responsive reloading.
     if (meta.flag('reload')) {
-      worker.monitor()
+      worker.monitor(meta.flag('build'), meta.flag('source'))
     }
 
     // Support environment variables
@@ -194,7 +206,8 @@ const cmd = new Command({
       console.log(chalk.grey(`  ${chalk.bold('Ctrl+n')} = nuke active cache (destructive)`))
       console.log(chalk.grey(`  ${chalk.bold('Ctrl+e')} = view environment variables`))
       console.log(chalk.grey(`  ${chalk.bold('Ctrl+g')} = GET http://${activeDefaultUrl}`))
-      console.log(chalk.grey(`  ${chalk.bold('Ctrl+p')} = Preferences`))
+      console.log(chalk.grey(`  ${chalk.bold('Ctrl+p')} = preferences`))
+      // console.log(chalk.grey(`  ${chalk.bold('Ctrl+k')} = set kv value`))
       console.log('')
     }
 
@@ -207,6 +220,36 @@ const cmd = new Command({
 
       if (key.ctrl) {
         switch (key.name) {
+          // Removed realtime KV additions due to time restrictions
+//           case 'k':
+//             let rl = readline.createInterface({
+//               input: process.stdin,
+//               output: process.stdout
+//             })
+
+//             console.log('\n  ' + chalk.underline('Enter Key/Value\n') + chalk.green('  Format: key=value\n  Ex: mykv.user=\'jdoe\', age=32 (default KV)\n\n' + chalk.italic.yellow.dim('  press "ctrl+c" to exit KV mode or "return" to submit KV entries')))
+
+//             const prompt = chalk.magenta('  kv> ')
+//             rl.question(prompt, a => {
+//               rl.pause()
+//               try {
+//                 let {key, value} = a.match(/(?<key>[^=]+)=(?<value>[^\n]+)/i).groups
+// console.log(key, value)
+//               } catch (e) {
+//                 console.log(chalk.italic.red('  invalid input. Expected key=value or kvnamespace.key=value syntax.'))
+//               }
+//               // let storename = meta.flag('store')[0].split('=').shift().trim()
+//               // console.log(a, )
+//               // let store = worker.store(meta.flag('store'))
+//               // if (!store) {
+//               //   console.log('need to create store')
+//               // }
+//               // console.log(store)
+//               console.log(rl)
+//               rl.close()
+//             })
+//             console.log('yo')
+//             break
           case 'p':
             console.log(new Table([
               [chalk.bold('Preferences')],
@@ -244,7 +287,29 @@ const cmd = new Command({
                 console.log(chalk.grey(headers.replace('Header', chalk.bold('Header'))) + '\n')
                 if (body.length > 0) {
                   console.log(chalk.bold('    Response Body:\n'))
-                  console.log(chalk.grey(body.split('\n').map(i => `    ${i}`).join('\n')))
+                  switch (res.headers['content-encoding']) {
+                    case 'br':
+                      body = zlib.createBrotliDecompress(body)
+                      break
+                    case 'gzip':
+                      body = zlib.createUnzip(body)
+                      break
+                  }
+
+                  const maxLength = 75
+                  const truncate = body.length >= maxLength
+
+                  body = body.split('\n')
+
+                  if (truncate) {
+                    body = body.slice(0, maxLength - 1)
+                  }
+
+                  console.log(chalk.grey(body.map(i => `    ${i}`).join('\n')))
+
+                  if (truncate) {
+                    console.log(chalk.dim.italic.yellow(`    -> response truncated after ${maxLength} lines for display purposes onl`))
+                  }
                 } else {
                   console.log(chalk.bold('    Response Body: None'))
                 }

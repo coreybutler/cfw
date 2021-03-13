@@ -7,15 +7,22 @@ import { Table } from '@author.io/node-shell'
 import { EventEmitter } from 'events'
 import CFServer from './server.js'
 import Configuration from './config.js'
+import os, { type } from 'os'
+import webpack from 'webpack'
+import { rollup } from 'rollup'
+import { execSync } from 'child_process'
 
 let active = null
 
 export default class CFWorker extends EventEmitter {
   #filepath
   #source
+  #sourcepath
   #server
   #wasm
   #lastTime = null
+  #compiler = null
+  #build = null
 
   constructor (source, wasm) {
     super()
@@ -32,29 +39,30 @@ export default class CFWorker extends EventEmitter {
     }
 
     this.#filepath = path.resolve(process.cwd(), source)
+    this.#sourcepath = path.resolve(process.cwd(), source)
 
     if (!fs.existsSync(this.#filepath)) {
       console.log(chalk.red(`${chalk.bold(source)} does not exist or cannot be found.`))
       process.exit(1)
     }
 
-    const info = this.loadWorker()
+    ;(async () => {
 
-    this.#wasm = wasm
-    this.#server = new CFServer(this.#source, this.#wasm)
-    this.#server.filepath = this.#filepath
-    this.#server.on('online', () => this.emit('online'))
-    this.#server.on('offline', () => this.emit('offline'))
+      this.#wasm = wasm
+      this.#server = new CFServer(this.#source, this.#wasm)
+      this.#server.filepath = this.#filepath
+      this.#server.on('online', () => this.emit('online'))
+      this.#server.on('offline', () => this.emit('offline'))
 
-    active = this
+      const info = await this.build().catch(console.error)
 
-    console.log('\n' + chalk.bold(`Worker: ${path.basename(this.#filepath)}`))
-    console.log(chalk.grey.italic(`Last Update: ${info.mtime.toLocaleString()}`) + '\n')
+      active = this
 
-    // Notify when WASM is active.
-    if (Object.keys(wasm).length > 0) {
-      console.log(chalk.cyan('* WebAssembly activated'))
-    }
+      // Notify when WASM is active.
+      if (Object.keys(wasm).length > 0) {
+        console.log(chalk.cyan('* WebAssembly activated'))
+      }
+    })()
   }
 
   secrets (filepath, key = null) {
@@ -98,7 +106,103 @@ export default class CFWorker extends EventEmitter {
   }
 
   set configFile (value) {
-    this.#server.configuration = new Configuration(value)
+    const cfg = new Configuration(value)
+    this.#server.configuration = cfg
+  }
+
+  async build () {
+    return new Promise(async (resolve, reject) => {
+      const filepath = this.#sourcepath
+      const pkgfile = path.join(path.dirname(filepath), 'package.json')
+
+      if (fs.existsSync(pkgfile)) {
+        const data = JSON.parse(fs.readFileSync(pkgfile).toString())
+
+        if (data.type === "module" && this.#server && this.#server.config && this.#server.config.type) {
+          const outdir = path.join(os.tmpdir(), 'cfw', data.name)
+          fs.mkdirSync(outdir, { recursive: true })
+          process.on('exit', () => fs.rmdirSync(outdir, { recursive: true }))
+
+          switch (this.#server.config.type) {
+            case 'webpack':
+              // This code doesn't seem to work. Perhaps someone can figure out why and correct it.
+              const cfg = {
+                entry: path.join(path.dirname(pkgfile), path.dirname(data.main)),
+                output: {
+                  path: outdir,
+                  filename: "index.js"
+                },
+                target: 'webworker'
+              }
+
+              console.log('Webpack Config:', cfg)
+              const compiler = webpack(cfg)
+
+              compiler.run((err, stats) => {
+                compiler.close()
+                if (err) {
+                  console.error(err.stack || err)
+                  if (err.details) {
+                    console.error(err.details)
+                  }
+                  process.exit(1)
+                }
+
+                const info = stats.toJson()
+
+                if (stats.hasErrors()) {
+                  console.error(info.errors)
+                  process.exit(1)
+                }
+
+                if (stats.hasWarnings()) {
+                  console.warn(info.warnings)
+                }
+
+                console.log("<<<DONE>>>")
+              })
+              break
+
+            case 'javascript':
+              // Use rollup to bundle module
+              const opts = {
+                input: path.join(path.dirname(pkgfile), data.main)
+              }
+
+              const bundle = await rollup(opts)
+              const { output } = await bundle.generate({ format: 'es' })
+
+              let code = []
+              for (const chunk of output) {
+                if (chunk.type === 'chunk') {
+                  code.push(chunk.code)
+                }
+              }
+
+              this.#source = code.join('')
+              break
+
+            default:
+              this.#source = fs.readFileSync(this.#filepath).toString('utf-8')
+          }
+        } else {
+          this.#source = fs.readFileSync(this.#filepath).toString('utf-8')
+          if (this.#source.match(/(import\s+{?.+}?\s+from\s+[\'\"][^\'\"]+[\'\"])/i)) {
+            return reject(new Error(`An attempt to load an ES module was made, but the package.json does not identify a module type.`))
+          }
+        }
+      } else {
+        return reject(new Error(`Cannot find package.json at ${path.dirname(filepath)}`))
+      }
+
+      this.#server.worker = this.#source
+      const stats = fs.statSync(this.#sourcepath)
+
+      console.log('\n' + chalk.bold(`Worker: ${path.basename(this.#sourcepath)}`))
+      console.log(chalk.grey.italic(`Last Update: ${stats.mtime.toLocaleString()}`) + '\n')
+
+      resolve(stats)
+    })
   }
 
   get cacheContent () {
@@ -135,14 +239,20 @@ export default class CFWorker extends EventEmitter {
   }
 
   loadWorker () {
-    this.#source = fs.readFileSync(this.#filepath).toString('utf-8')
+    this.build()
+    // this.#source = fs.readFileSync(this.#filepath).toString('utf-8')
     return fs.statSync(this.#filepath)
   }
 
-  monitor () {
-    const watcher = chokidar.watch(this.#filepath, { persistent: true })
-  
-    watcher.on('change', () => this.reload())
+  monitor (cmd = null, source = null) {
+    this.#build = cmd
+    const root = source || path.dirname(this.#filepath)
+    const watcher = chokidar.watch(root, { persistent: true })
+
+    watcher.on('change', fp => {
+      console.log(chalk.blue(`* Change Detected: ${fp}`))
+      this.reload()
+    })
 
     watcher.on('unlink', filepath => {
       console.log(chalk.red.bold(` ==> ${path.basename(filename)} removed.`))
@@ -150,7 +260,7 @@ export default class CFWorker extends EventEmitter {
     })
 
     console.log(chalk.cyan('* Automatic reload enabled'))
-    console.log(chalk.grey('  - Monitoring ' + path.basename(this.#filepath)))
+    console.log(chalk.grey('  - Monitoring ' + root))
 
     if (this.#server.config.active) {
       const toml = chokidar.watch(this.#server.config.file, { persistent: true })
@@ -161,11 +271,11 @@ export default class CFWorker extends EventEmitter {
           environment: cfg.environment,
           route: cfg.route,
           zone: cfg.zone,
-          vars: cfg.variables 
+          vars: cfg.variables
         }
-        
+
         cfg.read() // Re-reads the config
-        
+
         if (old.environment) {
           cfg.use(old.environment)
         }
@@ -199,10 +309,10 @@ export default class CFWorker extends EventEmitter {
             console.log(chalk.yellow(`* Applied Updated Environment:\n\n${chalk.grey(varTable.output)}\n`))
           }
         }
-        
+
         this.reload(true)
       })
-      
+
       toml.on('unlink', filepath => {
         console.log(chalk.red.bold(` ==> ${cfg.file} removed.`))
         process.exit(0)
@@ -223,9 +333,12 @@ export default class CFWorker extends EventEmitter {
   }
 
   reload (force = false) {
+    if (this.#build !== null) {
+      execSync(`npm run ${this.#build}`, { stdio: [0, 1, 2] })
+    }
     const info = this.loadWorker()
     const time = info.mtime.toLocaleString()
-    
+
     if (force || time !== this.#lastTime) {
       this.#lastTime = time
 
@@ -249,5 +362,10 @@ export default class CFWorker extends EventEmitter {
 
   initializeKvStore (data = {}, namespace) {
     this.#server.applyKvStoreItems(...arguments)
+  }
+
+  // accepts a name attribute
+  store () {
+    return this.#server.store(...arguments)
   }
 }

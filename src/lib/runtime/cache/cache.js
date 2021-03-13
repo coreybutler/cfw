@@ -2,9 +2,10 @@ import LRU from 'lru-cache'
 import { Request, Response } from '../fetch.js'
 import CFCachePolicy from './cloudflareCachePolicy.js'
 import chalk from 'chalk'
-import Table from '@author.io/node-shell'
+import { Table } from '@author.io/node-shell'
 import fs from 'fs'
 import path from 'path'
+import TaskRunner from 'shortbus'
 
 class CacheFactory {
   constructor () {
@@ -67,7 +68,23 @@ class CacheFactory {
       return item
     })
 
-    fs.writeFileSync(this.filepath, JSON.stringify(result))
+    const tasks = new TaskRunner()
+
+    tasks.on('complete', () => fs.writeFileSync(this.filepath, JSON.stringify(result)))
+
+    for (const el of result) {
+      tasks.add(next => {
+        const body = []
+        const stream = new ReadableStream()
+        stream.on('data', c => body.push(c))
+        stream.on('end', () => {
+          el.v.body = body.join()
+          next()
+        })
+
+        el.v.body.pipe(stream)
+      })
+    }
   }
 
   load (force = false) {
@@ -93,6 +110,15 @@ class CacheFactory {
       this.default.loading = false
     }
   }
+}
+
+function streamToString(stream) {
+  const chunks = []
+  return new Promise((resolve, reject) => {
+    stream.on('data', chunk => chunks.push(chunk))
+    stream.on('error', reject)
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+  })
 }
 
 const priv = v => Object.create({
@@ -173,7 +199,7 @@ class Cache {
         cachedRes = cachedRes.clone()
         cachedRes.headers.set('cf-cache-status', 'HIT')
 
-        console.log(chalk.grey('::: Used cached response.\n'))
+        console.log(chalk.blue.dim('    ::: Used cached response.\n'))
       }
 
       resolve(cachedRes)

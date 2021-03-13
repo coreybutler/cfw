@@ -142,11 +142,11 @@ export default class CFServer {
             } else if (consumed >= 50) {
               console.log(chalk.yellow.bold(`::: Worker consumed ${consumed}MB`))
             } else if (consumed >= 1) {
-              console.log(chalk.yellow(`::: Worker consumed ${consumed}MB`))
+              console.log(chalk.yellow.dim(`::: Worker consumed ${consumed}MB`))
             } else if (consumed < 0) {
-              console.log(chalk.grey('::: Worker consumed less than 1KB'))
+              console.log(chalk.dim('::: Worker consumed less than 1KB'))
             } else {
-              console.log(chalk.grey(`::: Worker consumed ${consumed}MB`))
+              console.log(chalk.dim(`::: Worker consumed ${consumed}MB`))
             }
           }
         }
@@ -172,6 +172,10 @@ export default class CFServer {
   set configuration (value) {
     this.#config = value
     this.#host = this.#config.route
+  }
+
+  get config () {
+    return this.#config
   }
 
   use (cfg) {
@@ -397,7 +401,7 @@ export default class CFServer {
     try {
       let timeout = setTimeout(() => {
         if (this.reply(res, 504, 'Request timed out while waiting for worker to respond.')) {
-          console.log(chalk.yellow(`::: No response after ${stopwatch.measure().display_ms}`))
+          console.log(chalk.yellow(`    ::: No response after ${stopwatch.measure().display_ms}`))
         }
       }, 2000)
 
@@ -418,12 +422,12 @@ export default class CFServer {
 
     if (duration.milliseconds > 10) {
       if (duration.milliseconds > 50) {
-        console.log(chalk.red.bold(`::: Completed in ${duration.display_ms}.\n`))
+        console.log(chalk.red.bold(`    ::: Completed in ${duration.display_ms}.\n`))
       } else {
-        console.log(chalk.yellow(`::: Completed in ${duration.display_ms}.\n`))
+        console.log(chalk.yellow(`    ::: Completed in ${duration.display_ms}.\n`))
       }
     } else {
-      console.log(chalk.green(`::: Completed in ${duration.display_ms}.\n`))
+      console.log(chalk.green(`    ::: Completed in ${duration.display_ms}.\n`))
     }
   }
 

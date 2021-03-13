@@ -2,8 +2,9 @@
 import TOML from '@iarna/toml'
 import fs from 'fs'
 import path from 'path'
+import { runInThisContext } from 'vm'
 
-export default class Wrangler {
+export default class Configuration {
   #file = null
   #data
   #env = null
@@ -60,7 +61,7 @@ export default class Wrangler {
 
   read () {
     const content = fs.readFileSync(this.#file, { encoding: 'utf8' })
-    
+
     try {
       this.#data = TOML.parse(content)
     } catch (e) {
@@ -75,13 +76,13 @@ export default class Wrangler {
     }
 
     const d = this.#data
-    
+
     if (d.env.hasOwnProperty(env)) {
       this.#env = env
-      
+
       if (d.env && d.env[env]) {
         const e = d.env[env]
-    
+
         e.route && (this.#host = e.route)
         e.vars && (this.#variables = e.vars)
         e.zone_id && (this.#zone = e.zone_id)
@@ -110,6 +111,10 @@ export default class Wrangler {
 
   get zone () {
     return this.#zone
+  }
+
+  get type () {
+    return this.#data.type
   }
 
   get data () {

@@ -1,4 +1,6 @@
-import fetch from '@dollarshaveclub/node-fetch'
+// @author.io/node-fetch is a modified version of @dollarshaveclub/node-fetch,
+// updated to support Blob.arrayBuffer and Blob.text methods in the CFW emulator.
+import fetch from '@author.io/node-fetch'
 const { Request, Response, Headers } = fetch
 
 async function fetchShim (...args) {

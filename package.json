@@ -1,10 +1,10 @@
 {
   "name": "@author.io/cfw",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.3",
   "description": "Emulates the CloudFlare worker environment.",
   "main": "src/index.js",
   "bin": {
-    "cfw": "./src/index.js"
+    "cfw": "src/index.js"
   },
   "directories": {
     "lib": "src/lib"
@@ -30,6 +30,7 @@
     "node": ">=15.2.1"
   },
   "dependencies": {
+    "@author.io/node-fetch": "^3.2.1",
     "@author.io/node-shell": "^1.8.2",
     "@dollarshaveclub/node-fetch": "^3.2.0",
     "@iarna/toml": "^2.2.5",
@@ -40,8 +41,13 @@
     "chokidar": "^3.4.3",
     "http-cache-semantics": "^4.1.0",
     "lru-cache": "^6.0.0",
+    "node-fetch": "^2.6.1",
     "node-tracktime": "^2.0.1",
-    "web-streams-polyfill": "^3.0.1"
+    "rollup": "^2.33.3",
+    "shortbus": "^1.2.8",
+    "source-map-support": "^0.5.19",
+    "web-streams-polyfill": "^3.0.1",
+    "webpack": "^5.6.0"
   },
   "devDependencies": {
     "@author.io/node-shell-debug": "^1.8.2"

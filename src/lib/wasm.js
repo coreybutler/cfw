@@ -17,6 +17,7 @@ export default class WASM {
   }
 
   static async buffer (buffer) {
+    // return new Uint8Array(buffer)
     return WebAssembly.compile(new Uint8Array(buffer))
   }
 
