@@ -2,6 +2,10 @@
 
 This emulator runs most Cloudflare workers locally, in an isolated environment. When work is complete, it can be published to Cloudflare using the publish subcommand. The tool extends the Wrangler tool provided by Cloudflare and was re-engineered from the original work created by Dollar Shave Club.
 
+# NOTICE
+
+We have no intention of maintaining this project beyond the scope of our own needs. This exists because we extended the original work done and hope others will pickup on it, or that the work will help inspire new efforts in the wrangler tool itself. In other words, we hope the official Cloudflare product will succeed this project at some point. In the meantime, use as you see fit. Do not expect support. That said, we will consider pull requests for bug fixes and synchronizing features with the Workers product.
+
 ## Installation
 
 `npm i -g @author.io/cfw`
